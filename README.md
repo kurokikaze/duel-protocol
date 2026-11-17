@@ -42,24 +42,3 @@ Moonlands owns game rules and engine actions. Duel-protocol owns serialized
 messages and conversion, including player-specific visibility. Bechamel owns
 decision making. Waystone owns UI, Tauri integration, and its local game host.
 Triage will own batch simulation, scheduling, and server orchestration.
-
-Do not put shared messages in Bechamel: that would make servers and ordinary
-clients depend on bot code. Do not put transport concerns in Moonlands: the engine
-must remain usable independently of a particular client protocol.
-
-The extraction deliberately preserves the wire format. Future changes should be
-versioned here and deployed together across consumers. This package currently
-provides TypeScript contracts, not runtime validation or protocol negotiation.
-Bot-specific client-state reconstruction types remain in Bechamel; UI state stays
-in Waystone. Any future shared setup/snapshot DTO should be defined here explicitly,
-without copying UI animation state or search internals into the wire contract.
-
-Command snapshots preserve engine object prototypes without relying on Moonlands
-constructor identity. This supports sibling file-linked checkouts that load
-separate installations of the same engine, while keeping card serialization and
-hidden information intact. The regression test covers this boundary.
-
-Before independent distribution, create the dedicated repository, build and
-publish/version this package, remove `private`, and replace consumers' local file
-dependencies with the selected release. No remote repository is created by this
-change.
