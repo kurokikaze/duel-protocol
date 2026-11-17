@@ -1,0 +1,28 @@
+{
+  "name": "duel-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./commands": "./dist/commands.js",
+    "./effects": "./dist/effects.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test test/commands.test.js"
+  },
+  "peerDependencies": {
+    "moonlands": ">=0.40.2 <0.41.0"
+  },
+  "devDependencies": {
+    "moonlands": "https://github.com/kurokikaze/moonlands/archive/refs/tags/v0.40.2.tar.gz",
+    "typescript": "^5.7.2",
+    "@types/node": "^18.7.10"
+  }
+}
