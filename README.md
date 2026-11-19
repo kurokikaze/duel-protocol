@@ -1,8 +1,10 @@
 # Duel protocol
 
 Shared wire contract for Magi-Nation Duel clients, bots, and game servers.
-This directory is a standalone package prepared for its own repository. It is
-currently private and connected to sibling checkouts with `file:` dependencies.
+Repository: [kurokikaze/duel-protocol](https://github.com/kurokikaze/duel-protocol).
+The package is currently private in npm terms. Compiled packages are distributed
+as `.tgz` assets on GitHub Releases. Bechamel and Waystone consume the archive at
+https://github.com/kurokikaze/duel-protocol/releases/download/0.1.0/duel-protocol-0.1.0.tgz.
 
 | Entry point | Responsibility |
 | --- | --- |
@@ -35,10 +37,11 @@ waystone -> bechamel -> moonlands
 waystone ------------> moonlands
 waystone -> duel-protocol -> moonlands
 bechamel -> duel-protocol
-triage   -> bechamel + duel-protocol + moonlands (future)
+triage   -> bechamel + duel-protocol + moonlands
 ```
 
 Moonlands owns game rules and engine actions. Duel-protocol owns serialized
 messages and conversion, including player-specific visibility. Bechamel owns
 decision making. Waystone owns UI, Tauri integration, and its local game host.
-Triage will own batch simulation, scheduling, and server orchestration.
+The sibling [triage server](../triage/README.md) owns batch simulation, server
+orchestration and MongoDB persistence.

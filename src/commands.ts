@@ -1710,6 +1710,13 @@ export function convertClientCommands(action: ClientAction, game: State): AnyEff
         case PROMPT_TYPE_NUMBER: {
           return action as AnyEffectType;
         }
+        case PROMPT_TYPE_REARRANGE_CARDS_OF_ZONE: {
+          const expected = game.state.promptParams.cards ?? [];
+          if (!Array.isArray(action.cards) || action.cards.length !== expected.length ||
+            new Set(action.cards).size !== action.cards.length ||
+            !action.cards.every(id => typeof id === 'string' && expected.some(card => card.id === id))) return null;
+          return action as AnyEffectType;
+        }
         case PROMPT_TYPE_MAY_ABILITY: {
           return action as AnyEffectType;
         }

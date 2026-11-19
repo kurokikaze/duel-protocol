@@ -438,7 +438,9 @@ type DistributiveOmit<T, K extends keyof any> = T extends any
 export type ClientEffectPromptEnteredAnyCreatureExceptSource = ClientEffectPromptEntered & Omit<AnyCreatureExceptSourcePromptParams, "source"> & { source: ConvertedCard }
 export type ClientEffectPromptEnteredSingleCreatureFiltered = ClientEffectPromptEntered & DistributiveOmit<SingleCreatureFilteredPromptParams, "source">
 export type ClientEffectPromptEnteredPlayer = ClientEffectPromptEntered & PlayerPromptParams
-export type ClientEffectPromptEnteredRearrangeCardsOfZone = ClientEffectPromptEntered & RearrangeCardsOfZonePromptParams
+export type ClientEffectPromptEnteredRearrangeCardsOfZone = ClientEffectPromptEntered & Omit<RearrangeCardsOfZonePromptParams, 'promptParams'> & {
+    promptParams: Pick<ClientEnterPromptRearrangeCardsOfZone, 'zone' | 'zoneOwner' | 'numberOfCards' | 'cards'>
+}
 export type ClientEffectPromptEnteredRearrangeEnergy = ClientEffectPromptEntered & RearrangeEnergyPromptParams
 export type ClientEffectPromptEnteredNumber = ClientEffectPromptEntered & {
     promptType: typeof PROMPT_TYPE_NUMBER
