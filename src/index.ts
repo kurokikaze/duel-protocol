@@ -203,7 +203,13 @@ export type ClientEnterPromptAction = ClientEnterPromptChooseNCardsFromZone |
     ClientEnterPromptDistributeCardsInZones |
     ClientEnterPromptPowerOnMagi;
 
-export type ClientEffectAction = ClientEffectRearrangeEnergyOnCreatures |
+export type ClientEffectRevealCards = {
+    type: typeof ACTION_EFFECT,
+    effectType: 'effects/reveal_cards',
+    cards: string[],
+}
+
+export type ClientEffectAction = ClientEffectRevealCards | ClientEffectRearrangeEnergyOnCreatures |
     ClientEffectReturnCreatureReturningEnergy |
     ClientEffectStartOfTurn |
     ClientEffectEndOfTurn |

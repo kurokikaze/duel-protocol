@@ -12,6 +12,46 @@ import {
   ACTION_POWER, ACTION_RESOLVE_PROMPT, ZONE_TYPE_ACTIVE_MAGI, ZONE_TYPE_DECK,
 } from 'moonlands/dist/esm/const.js';
 
+test('Karak’s set-aside relic and its holder are public', () => {
+  const source = new CardInGame(byName('Dream Balm'), 1);
+  const destination = new CardInGame(byName('Dream Balm'), 1);
+  destination.data.setAsideUnder = { cardId: 'karak', blockedPlayer: 1 };
+  const command = convertServerCommand({
+    type: ACTION_EFFECT, effectType: EFFECT_TYPE_CARD_MOVED_BETWEEN_ZONES,
+    sourceCard: source, destinationCard: destination,
+    sourceZone: ZONE_TYPE_IN_PLAY, destinationZone: 'zones/set_aside',
+  }, {}, 2);
+  assert.equal(command.destinationCard.card, 'Dream Balm');
+  assert.deepEqual(command.destinationCard.data.setAsideUnder, { cardId: 'karak', blockedPlayer: 1 });
+});
+
+test('revealed card names go only to the designated viewer, even with hiding overridden', () => {
+  const cards = [new CardInGame(byName('Weebo'), 1), new CardInGame(byName('Grow'), 1)];
+  const action = { type: ACTION_EFFECT, effectType: 'effects/reveal_cards', viewer: '$viewer', cards: '$cards', generatedBy: 'mask' };
+  const game = { getMetaValue: value => value === '$viewer' ? 2 : cards };
+  assert.deepEqual(convertServerCommand(action, game, 2), {
+    type: ACTION_EFFECT, effectType: 'effects/reveal_cards', cards: ['Weebo', 'Grow'],
+  });
+  assert.equal(convertServerCommand(action, game, 1), null);
+  assert.equal(convertServerCommand(action, game, 1, true), null);
+});
+
+test('Entangle activates only on the selected player’s next turn', () => {
+  const command = convertServerCommand({
+    type: ACTION_EFFECT,
+    effectType: 'effects/create_continuous_effect',
+    player: 1,
+    turnPlayer: '$selectedPlayer',
+    expiration: { type: 'expirations/during_player_turns', turns: 1 },
+  }, { getMetaValue: () => 1 }, 2);
+  assert.equal(command.expiration.turnPlayer, 1);
+  const waiting = tickDownContinuousEffects([command], false, 2);
+  assert.equal(waiting[0].expiration.active, false);
+  const active = tickDownContinuousEffects(waiting, true, 1);
+  assert.equal(active[0].expiration.active, true);
+  assert.deepEqual(tickDownContinuousEffects(active, false, 2), []);
+});
+
 test('Fog Bank transports its attachment ID and expires after two turns opposing its caster', () => {
   const source = { id: 'fog-in-play' };
   const target = { id: 'protected-creature' };

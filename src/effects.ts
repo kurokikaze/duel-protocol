@@ -1,14 +1,17 @@
 import { EXPIRATION_NEVER, EXPIRATION_ANY_TURNS, EXPIRATION_OPPONENT_TURNS } from 'moonlands/dist/esm/const.js';
 
-export const tickDownContinuousEffects = <T extends { player?: number; expiration: { type: string; turns?: number; active?: boolean } }>(
+export const tickDownContinuousEffects = <T extends { player?: number; expiration: { type: string; turns?: number; active?: boolean; turnPlayer?: number } }>(
   effects: T[], opponent: boolean, activePlayer?: number,
 ): T[] => {
   let resultingEffects: T[] = [];
   for (const effect of effects) {
     switch (effect.expiration.type) {
+      case 'expirations/during_player_turns':
       case 'expirations/during_opponent_turns': {
         const turns = effect.expiration.turns! - (effect.expiration.active ? 1 : 0);
-        const active = activePlayer === undefined || effect.player === undefined ? opponent : activePlayer !== effect.player;
+        const active = effect.expiration.type === 'expirations/during_player_turns'
+          ? activePlayer !== undefined && activePlayer === (effect.expiration.turnPlayer ?? effect.player)
+          : activePlayer === undefined || effect.player === undefined ? opponent : activePlayer !== effect.player;
         if (turns > 0) resultingEffects.push({ ...effect, expiration: { ...effect.expiration, turns, active } });
         break;
       }

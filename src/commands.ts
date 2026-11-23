@@ -144,10 +144,12 @@ import {
   ClientEffectPromptEnteredUpToNCardsFromZone,
   ClientEffectPromptEnteredChooseCardsFromZone,
   ClientEffectPromptEnteredRearrangeCardsOfZone,
-  ClientEffectPromptEnteredDistributeCardsInZones
+  ClientEffectPromptEnteredDistributeCardsInZones,
+  ClientEffectRevealCards,
 } from './index.js';
 
-const hiddenZonesHash: Record<ZoneType, boolean> = {
+const hiddenZonesHash: Record<ZoneType | 'zones/set_aside', boolean> = {
+  'zones/set_aside': false,
   [ZONE_TYPE_DECK]: true,
   [ZONE_TYPE_MAGI_PILE]: true,
   [ZONE_TYPE_HAND]: true,
@@ -218,7 +220,20 @@ function cloneCommand<T>(value: T, seen = new WeakMap<object, any>()): T {
   return result;
 }
 
-export function convertServerCommand(initialAction: AnyEffectType, game: State, playerId: number, overrideHiding = false): ClientCommand | any | null {
+type RevealCardsAction = Omit<ClientEffectRevealCards, 'cards'> & {
+  cards: CardInGame | CardInGame[] | string;
+  viewer: number | string;
+  generatedBy?: string;
+};
+
+export function convertServerCommand(initialAction: AnyEffectType | RevealCardsAction, game: State, playerId: number, overrideHiding = false): ClientCommand | any | null {
+  if (initialAction.type === ACTION_EFFECT && initialAction.effectType === 'effects/reveal_cards') {
+    const { viewer, cards, generatedBy } = initialAction;
+    if (game.getMetaValue(viewer, generatedBy) !== playerId) return null;
+    const targets: CardInGame | CardInGame[] | null = game.getMetaValue(cards, generatedBy);
+    const revealed = Array.isArray(targets) ? targets : targets ? [targets] : [];
+    return { type: ACTION_EFFECT, effectType: 'effects/reveal_cards', cards: revealed.map(card => card.card.name) } satisfies ClientEffectRevealCards;
+  }
   try {
     var action: AnyEffectType = cloneCommand(initialAction);
   } catch (e) {
@@ -1392,7 +1407,12 @@ export function convertServerCommand(initialAction: AnyEffectType, game: State, 
             type: action.type,
             effectType: action.effectType,
             generatedBy: action.generatedBy,
-            expiration: { ...action.expiration },
+            expiration: {
+              ...action.expiration,
+              ...('turnPlayer' in action && action.turnPlayer !== undefined && {
+                turnPlayer: game.getMetaValue(action.turnPlayer, action.generatedBy),
+              }),
+            },
             staticAbilities,
             triggerEffects: action.triggerEffects || [],
             ...(discardSourceId && { discardSourceId }),
