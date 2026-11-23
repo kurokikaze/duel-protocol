@@ -248,6 +248,7 @@ export type ClientEffectPlayCreature = {
 }
 
 export type ClientEffectCreateContinuousEffect = {
+    discardSourceId?: string,
     type: typeof ACTION_EFFECT,
     effectType: typeof EFFECT_TYPE_CREATE_CONTINUOUS_EFFECT,
     generatedBy: string,

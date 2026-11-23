@@ -325,7 +325,7 @@ export function convertServerCommand(initialAction: AnyEffectType, game: State, 
           const zoneOwner = game.getMetaValue(action.promptParams.zoneOwner, action.generatedBy);
           const numberOfCards = game.getMetaValue(action.promptParams.numberOfCards, action.generatedBy);
           const cardFilter = game.makeCardFilter(restrictions || []);
-          const zoneContent = game.getZone(zone, zoneOwner).cards;
+          const zoneContent = game.getZone(zone, zone === ZONE_TYPE_IN_PLAY ? null : zoneOwner).cards;
           const cards = restrictions ? zoneContent.filter(cardFilter) : zoneContent;
           const promptPlayer = game.getMetaValue(action.player, action.generatedBy);
 
@@ -617,7 +617,7 @@ export function convertServerCommand(initialAction: AnyEffectType, game: State, 
               const zoneOwner = game.getMetaValue(action.promptParams.zoneOwner, action.generatedBy);
               const numberOfCards = game.getMetaValue(action.promptParams.numberOfCards, action.generatedBy);
               const cardFilter = game.makeCardFilter(restrictions || []);
-              const zoneContent = game.getZone(zone, zoneOwner).cards;
+              const zoneContent = game.getZone(zone, zone === ZONE_TYPE_IN_PLAY ? null : zoneOwner).cards;
               const cards = restrictions ? zoneContent.filter(cardFilter) : zoneContent;
               const promptPlayer = game.getMetaValue(action.player, action.generatedBy);
 
@@ -1377,11 +1377,17 @@ export function convertServerCommand(initialAction: AnyEffectType, game: State, 
           } as ClientEffectDraw;
         }
         case EFFECT_TYPE_CREATE_CONTINUOUS_EFFECT: {
-          const staticAbilities = (action.staticAbilities || []).map(ability =>
-            Object.fromEntries(
+          const staticAbilities = (action.staticAbilities || []).map(ability => {
+            const resolved = Object.fromEntries(
               Object.entries(ability).map(([k, v]) => [k, game.getMetaValue(v, action.generatedBy)]),
-            ),
-          )
+            );
+            if (ability.selector === 'selectors/id' && resolved.selectorParameter?.id) {
+              resolved.selectorParameter = resolved.selectorParameter.id;
+            }
+            return resolved;
+          });
+          const discardSourceId = 'discardSourceOnExpiration' in action && action.discardSourceOnExpiration && 'source' in action
+            ? game.getMetaValue(action.source, action.generatedBy)?.id : undefined;
           return {
             type: action.type,
             effectType: action.effectType,
@@ -1392,6 +1398,7 @@ export function convertServerCommand(initialAction: AnyEffectType, game: State, 
             },
             staticAbilities,
             triggerEffects: action.triggerEffects || [],
+            ...(discardSourceId && { discardSourceId }),
             player: action.player,
           } as ClientEffectCreateContinuousEffect;
         }
@@ -1657,11 +1664,21 @@ export function convertClientCommands(action: ClientAction, game: State): AnyEff
           return null;
         }
         case PROMPT_TYPE_CHOOSE_UP_TO_N_CARDS_FROM_ZONE: {
-          if (action.zone) {
-            const zone = action.zone === ZONE_TYPE_IN_PLAY ? game.getZone(ZONE_TYPE_IN_PLAY) : game.getZone(action.zone, action.zoneOwner);
+          // The active prompt owns the zone context; queued bot replies may
+          // omit those redundant client fields, including a valid cards:[].
+          const zoneType = game.state.promptParams.zone ?? action.zone;
+          const zoneOwner = game.state.promptParams.zoneOwner ?? action.zoneOwner;
+          if (zoneType) {
+            const zone = zoneType === ZONE_TYPE_IN_PLAY ? game.getZone(ZONE_TYPE_IN_PLAY) : game.getZone(zoneType, zoneOwner);
             const zoneContent = zone.cards;
             const actionCards = action.cards;
             if (actionCards instanceof Array) {
+              const limit = game.state.promptParams.numberOfCards;
+              const available = game.state.promptParams.cards;
+              if ((typeof limit === 'number' && actionCards.length > limit) ||
+                new Set(actionCards).size !== actionCards.length ||
+                !actionCards.every(id => typeof id === 'string' && zoneContent.some(card => card.id === id) &&
+                  (!available || available.some(card => card.id === id)))) return null;
               const cards = zoneContent.filter(card => (actionCards instanceof Array && actionCards.includes(card.id)));
               return {
                 type: action.type,

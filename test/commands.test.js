@@ -1,15 +1,40 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import convertClientCommands, { convertServerCommand } from '../dist/commands.js';
+import { tickDownContinuousEffects } from '../dist/effects.js';
 import { State } from 'moonlands/dist/esm/index.js';
 import CardInGame from 'moonlands/dist/esm/classes/CardInGame.js';
 import Zone from 'moonlands/dist/esm/classes/Zone.js';
 import { byName } from 'moonlands/dist/esm/cards.js';
 import {
   ACTION_EFFECT, EFFECT_TYPE_CARD_MOVED_BETWEEN_ZONES,
-  ZONE_TYPE_HAND, ZONE_TYPE_IN_PLAY,
+  ZONE_TYPE_HAND, ZONE_TYPE_IN_PLAY, ZONE_TYPE_DISCARD,
   ACTION_POWER, ACTION_RESOLVE_PROMPT, ZONE_TYPE_ACTIVE_MAGI, ZONE_TYPE_DECK,
 } from 'moonlands/dist/esm/const.js';
+
+test('Fog Bank transports its attachment ID and expires after two turns opposing its caster', () => {
+  const source = { id: 'fog-in-play' };
+  const target = { id: 'protected-creature' };
+  const command = convertServerCommand({
+    type: ACTION_EFFECT,
+    effectType: 'effects/create_continuous_effect',
+    player: 1,
+    source: '$new_card',
+    discardSourceOnExpiration: true,
+    expiration: { type: 'expirations/during_opponent_turns', turns: 2 },
+    staticAbilities: [{ selector: 'selectors/id', selectorParameter: '$target' }],
+  }, {
+    getMetaValue: value => value === '$new_card' ? source : value === '$target' ? target : value,
+  }, 2);
+  assert.equal(command.discardSourceId, source.id);
+  assert.equal(command.staticAbilities[0].selectorParameter, target.id);
+  let effects = [command];
+  for (const [player, turns, active] of [[2, 2, true], [1, 1, false], [2, 1, true]]) {
+    effects = tickDownContinuousEffects(effects, player !== 2, player);
+    assert.deepEqual(effects[0].expiration, { type: 'expirations/during_opponent_turns', turns, active });
+  }
+  assert.deepEqual(tickDownContinuousEffects(effects, true, 1), []);
+});
 
 // Represents an engine card whose constructor comes from another module copy.
 class ForeignCard {
@@ -64,4 +89,40 @@ test('converts and validates Barak Prophecy replies all the way into engine reso
   assert.equal(game.state.prompt, false);
   assert.deepEqual(game.getSpellMetadata(barak.id).rearrangedCards, cards);
   assert.deepEqual(game.getZone(ZONE_TYPE_DECK, 1).cards.map(card => card.id), [...cards, deck[4].id]);
+});
+
+function mindwindsGame() {
+  const source = new CardInGame(byName('Cloud Sceptre'), 1);
+  const hand = new CardInGame(byName('Xyx Minor'), 1);
+  const game = new State({ zones: [
+    new Zone('Magi', ZONE_TYPE_ACTIVE_MAGI, 1).add([new CardInGame(byName('Lasada'), 1).addEnergy(10)]),
+    new Zone('In play', ZONE_TYPE_IN_PLAY, null).add([source]),
+    new Zone('Hand', ZONE_TYPE_HAND, 1).add([hand]),
+    new Zone('Deck', ZONE_TYPE_DECK, 1).add([new CardInGame(byName('Fire Ball'), 1)]),
+    new Zone('Discard', ZONE_TYPE_DISCARD, 1),
+  ], step: 1, activePlayer: 1 });
+  game.setPlayers(1, 2);
+  game.update({ type: ACTION_POWER, source, power: source.card.data.powers[0], player: 1 });
+  return { game, hand };
+}
+
+test('Mindwinds accepts an empty optional selection without echoed zone fields (run 0018)', () => {
+  const { game, hand } = mindwindsGame();
+  const converted = convertClientCommands({ type: ACTION_RESOLVE_PROMPT, cards: [], player: 1 }, game);
+  assert.ok(converted);
+  game.update(converted);
+  assert.equal(game.state.prompt, false);
+  assert.deepEqual(game.getZone(ZONE_TYPE_HAND, 1).cards.map(card => card.id), [hand.id]);
+});
+
+test('Mindwinds uses the prompt zone and rejects unknown, duplicate or excessive choices', () => {
+  const { game, hand } = mindwindsGame();
+  const reply = { type: ACTION_RESOLVE_PROMPT, cards: [hand.id], player: 1 };
+  assert.equal(convertClientCommands({ ...reply, cards: ['missing'] }, game), null);
+  assert.equal(convertClientCommands({ ...reply, cards: [hand.id, hand.id] }, game), null);
+  const converted = convertClientCommands({ ...reply, zone: ZONE_TYPE_DISCARD, zoneOwner: 2 }, game);
+  assert.ok(converted);
+  game.update(converted);
+  assert.equal(game.state.prompt, false);
+  assert.equal(game.getZone(ZONE_TYPE_HAND, 1).card.card.name, 'Fire Ball');
 });
