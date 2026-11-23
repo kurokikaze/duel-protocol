@@ -1,6 +1,6 @@
 {
   "name": "duel-protocol",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "repository": {
     "type": "git",
@@ -22,10 +22,10 @@
     "test": "node --test test/commands.test.js"
   },
   "peerDependencies": {
-    "moonlands": ">=0.40.2 <0.41.0"
+    "moonlands": ">=0.41.0 <0.42.0"
   },
   "devDependencies": {
-    "moonlands": "https://github.com/kurokikaze/moonlands/archive/refs/tags/v0.40.2.tar.gz",
+    "moonlands": "https://github.com/kurokikaze/moonlands/archive/refs/tags/v0.41.0.tar.gz",
     "typescript": "^5.7.2",
     "@types/node": "^18.7.10"
   }
