@@ -813,13 +813,14 @@ export function convertServerCommand(initialAction: AnyEffectType | RevealCardsA
               };
             }
             case PROMPT_TYPE_POWER_ON_MAGI: {
-              // @ts-ignore
-              const magi: CardInGame[] = game.getMetaValue(action?.magi, action.generatedBy);
+              const selected = game.getMetaValue(action.promptParams.magi, action.generatedBy);
+              const magi: CardInGame | undefined = Array.isArray(selected) ? selected[0] : selected;
+              if (!magi) return null;
               return {
                 type: action.type,
                 effectType: action.effectType,
                 promptType: action.promptType,
-                magi: convertCard(magi[0]),
+                magi: convertCard(magi),
                 generatedBy: action.generatedBy,
                 player: action.player,
               };
@@ -1617,14 +1618,10 @@ export function convertClientCommands(action: ClientAction, game: State): AnyEff
           return null;
         }
         case PROMPT_TYPE_POWER_ON_MAGI: {
-          if (action.power && game.state.promptParams?.magi && game.state.promptParams?.magi.length) {
-            return {
-              type: action.type,
-              power: game.state.promptParams?.magi[0].card.data.powers?.find(power => power.name === action.power),
-              source: game.state.promptParams?.magi[0],
-              player: action.player,
-            }
-          }
+          const source = game.state.promptParams.magi?.[0];
+          const power = source?.card.data.powers?.find(power => power.name === action.power);
+          if (!source || !power) return null;
+          return { type: action.type, power, source, player: action.player };
         }
         case PROMPT_TYPE_SINGLE_CREATURE_OR_MAGI: {
           if (action.target) {

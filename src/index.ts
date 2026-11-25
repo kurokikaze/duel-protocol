@@ -455,7 +455,13 @@ export type ClientEffectPromptEnteredNumber = ClientEffectPromptEntered & {
     max: number
 }
 
+export type ClientEffectPromptEnteredPowerOnMagi = ClientEffectPromptEntered & {
+    promptType: typeof PROMPT_TYPE_POWER_ON_MAGI;
+    magi: ConvertedCard;
+};
+
 export type ClientEffectPromptEnteredAny = ClientEffectPromptEnteredAlternative |
+    ClientEffectPromptEnteredPowerOnMagi |
     ClientEffectPromptEnteredChooseCards |
     ClientEffectPromptEnteredChooseCardsFromZone |
     ClientEffectPromptEnteredUpToNCardsFromZone |

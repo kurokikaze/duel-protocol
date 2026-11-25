@@ -12,6 +12,35 @@ import {
   ACTION_POWER, ACTION_RESOLVE_PROMPT, ZONE_TYPE_ACTIVE_MAGI, ZONE_TYPE_DECK,
 } from 'moonlands/dist/esm/const.js';
 
+test('Mirror Pendant transports the selected Magi from promptParams and resolves its named power', () => {
+  const pendant = new CardInGame(byName('Mirror Pendant'), 1);
+  const creature = new CardInGame(byName('Weebo'), 2).addEnergy(3);
+  const magi = new CardInGame(byName('Grega'), 1).addEnergy(10);
+  const game = new State({
+    activePlayer: 1, step: 1,
+    zones: [new Zone('In play', ZONE_TYPE_IN_PLAY, null).add([pendant, creature]),
+      new Zone('Magi 1', ZONE_TYPE_ACTIVE_MAGI, 1).add([magi]),
+      new Zone('Magi 2', ZONE_TYPE_ACTIVE_MAGI, 2).add([new CardInGame(byName('Ora'), 2).addEnergy(10)])],
+  });
+  game.setPlayers(1, 2);
+  let entered;
+  game.setOnAction(action => {
+    if (action.effectType === 'effects/prompt_entered' && action.promptType === 'prompt/power_on_magi') entered = convertServerCommand(action, game, 1);
+  });
+  game.update({ type: ACTION_POWER, source: pendant, power: pendant.card.data.powers[0], player: 1 });
+  assert.equal(game.state.promptType, 'prompt/power_on_magi');
+  assert.equal(entered.magi.id, magi.id);
+  assert.equal(entered.magi.card, 'Grega');
+  assert.equal(convertClientCommands({ type: ACTION_RESOLVE_PROMPT, power: 'Missing power', player: 1 }, game), null);
+  const power = magi.card.data.powers[0];
+  const converted = convertClientCommands({ type: ACTION_RESOLVE_PROMPT, power: power.name, player: 1 }, game);
+  assert.equal(converted.source, magi);
+  assert.equal(converted.power, power);
+  game.update(converted);
+  assert.notEqual(game.state.promptType, 'prompt/power_on_magi');
+  assert.equal(magi.data.energy, 10 - power.cost - 2);
+});
+
 test('Karak’s set-aside relic and its holder are public', () => {
   const source = new CardInGame(byName('Dream Balm'), 1);
   const destination = new CardInGame(byName('Dream Balm'), 1);
