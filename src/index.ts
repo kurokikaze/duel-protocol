@@ -521,7 +521,7 @@ export type ClientEffectAddEnergyToMagi = {
     type: typeof ACTION_EFFECT,
     effectType: typeof EFFECT_TYPE_ADD_ENERGY_TO_MAGI,
     amount: number,
-    target: ConvertedCard,
+    target: ConvertedCard | ConvertedCard[],
     source: ConvertedCard | null,
     player: number,
     generatedBy: string,
@@ -551,7 +551,7 @@ export type ClientEffectRemoveEnergyFromMagi = {
     type: typeof ACTION_EFFECT,
     effectType: typeof EFFECT_TYPE_REMOVE_ENERGY_FROM_MAGI,
     amount: number,
-    target: ConvertedCard,
+    target: ConvertedCard | ConvertedCard[],
     player: number,
     generatedBy: string,
 }

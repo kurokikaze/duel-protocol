@@ -1080,12 +1080,13 @@ export function convertServerCommand(initialAction: AnyEffectType | RevealCardsA
             parseInt(game.getMetaValue(action.amount, action.generatedBy), 10) :
             action.amount;
 
-          const target = (targetCard.length) ? targetCard[0] : targetCard;
+          if (!targetCard || (Array.isArray(targetCard) && !targetCard.length)) return null;
+          const target = Array.isArray(targetCard) ? targetCard.map(card => convertCard(card)) : convertCard(targetCard);
 
           return {
             type: action.type,
             effectType: action.effectType,
-            target: convertCard(target),
+            target,
             amount,
             generatedBy: action.generatedBy,
             player: action.player,
@@ -1279,24 +1280,6 @@ export function convertServerCommand(initialAction: AnyEffectType | RevealCardsA
             player: action.player,
           } as ClientEffectDiscardCardFromHand;
         }
-        case EFFECT_TYPE_REMOVE_ENERGY_FROM_MAGI: {
-          const targetCard = (typeof action.target == 'string') ?
-            game.getMetaValue(action.target, action.generatedBy) :
-            action.target;
-
-          const amount = (typeof action.amount == 'string') ?
-            parseInt(game.getMetaValue(action.amount, action.generatedBy), 10) :
-            action.amount;
-
-          const target = (targetCard instanceof Array) ? targetCard.map(convertCardMinimal) : convertCardMinimal(targetCard);
-
-          return {
-            ...action,
-            target,
-            // source: action.source ? convertCardMinimal(action.source) : action.source,
-            amount,
-          };
-        }
         case EFFECT_TYPE_ADD_ENERGY_TO_CREATURE: {
           const targetCard = (typeof action.target == 'string') ?
             game.getMetaValue(action.target, action.generatedBy) :
@@ -1306,7 +1289,13 @@ export function convertServerCommand(initialAction: AnyEffectType | RevealCardsA
             throw new Error('Card action without the card!');
           }
 
-          const target = (targetCard instanceof Array) ? targetCard.map(convertCardMinimal) : convertCardMinimal(targetCard);
+          const targets = (Array.isArray(targetCard) ? targetCard : [targetCard]).filter(card =>
+            card && game.getZone(ZONE_TYPE_IN_PLAY).containsId(card.id)
+              && game.isCardAffectedByEffect(card, action as Parameters<State['isCardAffectedByEffect']>[1]));
+          // This is an attempted addition, observed before the engine applies it.
+          // Clients must receive only the targets the engine will actually change.
+          if (!targets.length) return null;
+          const target = Array.isArray(targetCard) ? targets.map(convertCardMinimal) : convertCardMinimal(targets[0]);
 
           const amount = (typeof action.amount == 'string') ?
             parseInt(game.getMetaValue(action.amount, action.generatedBy), 10) :
@@ -1333,13 +1322,12 @@ export function convertServerCommand(initialAction: AnyEffectType | RevealCardsA
           const targetCard = (typeof action.target == 'string') ?
             game.getMetaValue(action.target, action.generatedBy) :
             action.target;
-          // @ts-ignore
-          const sourceCard: CardInGame | undefined = (typeof action.source == 'string') ?
-            // @ts-ignore
-            game.getMetaValue(action.source, action.generatedBy) :
-            action.target;
+          const rawSource = 'source' in action ? action.source : undefined;
+          const sourceCard: CardInGame | undefined = typeof rawSource === 'string'
+            ? game.getMetaValue(rawSource, action.generatedBy) : rawSource as CardInGame | undefined;
 
-          const target = (targetCard.length) ? targetCard[0] : targetCard;
+          if (!targetCard || (Array.isArray(targetCard) && !targetCard.length)) return null;
+          const target = Array.isArray(targetCard) ? targetCard.map(convertCardMinimal) : convertCardMinimal(targetCard);
 
           const amount = (typeof action.amount == 'string') ?
             parseInt(game.getMetaValue(action.amount, action.generatedBy), 10) :
@@ -1349,7 +1337,7 @@ export function convertServerCommand(initialAction: AnyEffectType | RevealCardsA
             type: action.type,
             effectType: action.effectType,
             ...(sourceCard ? { source: convertCardMinimal(sourceCard) } : {}),
-            target: convertCardMinimal(target),
+            target,
             amount,
           };
         }
