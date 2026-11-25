@@ -1215,7 +1215,9 @@ export function convertServerCommand(initialAction: AnyEffectType | RevealCardsA
           const targetCard = (typeof action.target == 'string') ?
             game.getMetaValue<CardInGame[] | CardInGame>(action.target, action.generatedBy) :
             action.target;
-          const target = ('length' in targetCard && targetCard.length) ? targetCard[0] : targetCard;
+          const target = Array.isArray(targetCard) ? targetCard[0] : targetCard;
+          // Mass discard effects can legitimately select no creatures.
+          if (!target) return null;
           // @ts-ignore will be fixed in a future moonlands update
           const sourceCard: CardInGame | null = (typeof action?.source == 'string') ?
             // @ts-ignore will be fixed in a future moonlands update

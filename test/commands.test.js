@@ -12,6 +12,41 @@ import {
   ACTION_POWER, ACTION_RESOLVE_PROMPT, ZONE_TYPE_ACTIVE_MAGI, ZONE_TYPE_DECK,
 } from 'moonlands/dist/esm/const.js';
 
+for (const victims of [0, 1, 2]) {
+  test(`Ormagon Devastate converts safely with ${victims} non-Underneath creatures`, () => {
+    const source = new CardInGame(byName('Ormagon'), 1).addEnergy(11);
+    const protectedCreature = new CardInGame(byName('Parmalag'), 1).addEnergy(4);
+    const targets = ['Weebo', 'Arbolit'].slice(0, victims).map(name =>
+      new CardInGame(byName(name), 2).addEnergy(3));
+    const game = new State({ activePlayer: 1, step: 1, zones: [
+      new Zone('In play', ZONE_TYPE_IN_PLAY, null).add([source, protectedCreature, ...targets]),
+      ...[1, 2].flatMap(player => [
+        new Zone('Magi', ZONE_TYPE_ACTIVE_MAGI, player).add([new CardInGame(byName('Grega'), player).addEnergy(10)]),
+        new Zone('Discard', ZONE_TYPE_DISCARD, player),
+      ]),
+    ] });
+    game.setPlayers(1, 2);
+    const discardCommands = [];
+    game.setOnAction(action => {
+      for (const player of [1, 2]) {
+        const command = convertServerCommand(action, game, player);
+        if (action.effectType === 'effects/discard_creature_from_play') discardCommands.push(command);
+      }
+    });
+    game.update({ type: ACTION_POWER, source, power: source.card.data.powers[0], player: 1 });
+    assert.equal(source.data.energy, 1);
+    assert.ok(source.data.actionsUsed.includes('Devastate'));
+    assert.deepEqual(game.getZone(ZONE_TYPE_IN_PLAY).cards.map(card => card.id).sort(), [source.id, protectedCreature.id].sort());
+    assert.equal(game.getZone(ZONE_TYPE_DISCARD, 2).cards.length, victims);
+    assert.equal(discardCommands.length, 2);
+    if (victims === 0) assert.deepEqual(discardCommands, [null, null]);
+    else for (const command of discardCommands) {
+      assert.equal(command.target.id, targets[0].id);
+      assert.equal(command.source.id, source.id);
+    }
+  });
+}
+
 test('Mirror Pendant transports the selected Magi from promptParams and resolves its named power', () => {
   const pendant = new CardInGame(byName('Mirror Pendant'), 1);
   const creature = new CardInGame(byName('Weebo'), 2).addEnergy(3);
