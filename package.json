@@ -22,10 +22,10 @@
     "test": "node --test test/commands.test.js"
   },
   "peerDependencies": {
-    "moonlands": ">=0.46.0 <0.47.0"
+    "moonlands": ">=0.47.0 <0.48.0"
   },
   "devDependencies": {
-    "moonlands": "https://github.com/kurokikaze/moonlands/archive/refs/tags/v0.46.0.tar.gz",
+    "moonlands": "https://github.com/kurokikaze/moonlands/archive/refs/tags/v0.47.0.tar.gz",
     "typescript": "^5.7.2",
     "@types/node": "^18.7.10"
   }

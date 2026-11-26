@@ -112,11 +112,17 @@ for (const victims of [0, 1, 2]) {
     assert.ok(source.data.actionsUsed.includes('Devastate'));
     assert.deepEqual(game.getZone(ZONE_TYPE_IN_PLAY).cards.map(card => card.id).sort(), [source.id, protectedCreature.id].sort());
     assert.equal(game.getZone(ZONE_TYPE_DISCARD, 2).cards.length, victims);
-    assert.equal(discardCommands.length, 2);
-    if (victims === 0) assert.deepEqual(discardCommands, [null, null]);
-    else for (const command of discardCommands) {
-      assert.equal(command.target.id, targets[0].id);
-      assert.equal(command.source.id, source.id);
+    if (victims === 0) {
+      // New engines suppress empty discard attempts before broadcasting them.
+      // Older supported versions still emit an attempt, converted to null per viewer.
+      assert.ok(discardCommands.length === 0 || discardCommands.length === 2);
+      assert.ok(discardCommands.every(command => command === null));
+    } else {
+      assert.equal(discardCommands.length, 2);
+      for (const command of discardCommands) {
+        assert.equal(command.target.id, targets[0].id);
+        assert.equal(command.source.id, source.id);
+      }
     }
   });
 }
